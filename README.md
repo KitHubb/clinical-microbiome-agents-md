@@ -2,7 +2,7 @@
 
 임상 마이크로바이옴 연구에서 Codex, Claude Code 같은 코딩 에이전트가 분석 기준을 임의로 바꾸지 않고, 정해진 절차에 따라 R 분석과 HTML 보고서 작성을 수행하도록 만든 개인용 지침 모음이다.
 
-공통 원칙과 분석 유형별 규칙을 분리했다. Amplicon 분석에는 공통 지침과 `amplicon/AGENTS.md`를 함께 적용한다. Shotgun 분석 지침은 아직 작성하지 않았으며, amplicon 전용 전처리와 통계 규칙을 shotgun 분석에 자동으로 적용하지 않는다.
+공통 원칙과 분석 유형별 규칙을 분리했다. Amplicon 분석에는 공통 지침과 `amplicon/AGENTS.md`를 함께 적용한다. Shotgun은 `microeco` 기반 core downstream 분석 지침을 별도로 적용한다. 이 문서는 read preprocessing, assembly, MAG reconstruction 등 shotgun 전체 과정을 포괄하지 않는다.
 
 ## 문서 구성
 
@@ -10,7 +10,7 @@
 |---|---|
 | [AGENTS.md](AGENTS.md) | 임상정보, 연구설계, batch 점검, 코딩, 검증 및 캐싱에 관한 공통 지침 |
 | [amplicon/AGENTS.md](amplicon/AGENTS.md) | `phyloseq` 기반 amplicon QC, decontam, diversity 및 통계 분석 지침 |
-| [shotgun/AGENTS.md](shotgun/AGENTS.md) | 향후 shotgun 분석 지침을 작성하기 위한 빈 문서 |
+| [shotgun/CORE_DOWNSTREAM_ANALYSIS.md](shotgun/CORE_DOWNSTREAM_ANALYSIS.md) | `microeco` 기반 shotgun core downstream 분석 지침 |
 | [HTML_REPORT_AGENTS.md](HTML_REPORT_AGENTS.md) | 한국어 HTML 보고서의 문체, 구성, 표·그림 표시, 렌더링 및 최종 검증 지침 |
 | `Clinical_Microbiome_Data_Prep_Checklist.xlsx` | 분석 전에 연구설계와 변수 정보를 정리하는 체크리스트 |
 
@@ -66,12 +66,25 @@
 - `set.seed(42)`와 BH-FDR 적용
 - 분석 단계별 sample·subject·taxa 수와 전후 변화 검증
 
+## Shotgun core downstream 지침의 핵심 내용
+
+- `microeco::microtable`을 기본 taxonomic analysis 객체로 사용
+- Kraken2 report와 Bracken abundance estimate를 구분
+- MetaPhlAn 4 relative abundance를 ASV·OTU·read count로 취급하지 않음
+- HUMAnN gene family, pathway abundance 및 pathway coverage를 별도 자료로 유지
+- Unstratified total과 taxon-stratified contribution의 중복 합산 방지
+- 실제 read count 또는 QC 지표만 sequencing depth로 사용
+- Count, relative abundance, transformed abundance 및 coverage 단위 구분
+- Independent, paired 및 repeated design에 맞는 통계와 permutation 적용
+- Taxonomic profile과 functional profile을 별도로 분석한 뒤 필요한 경우 연결
+- Differential abundance와 profiling-tool comparison은 분석 계획에 포함된 경우에만 수행
+- 분석 산출물의 내용·단위는 Shotgun 지침에서, 문체·표 UI·theme·font·layout은 HTML 보고서 지침에서 관리
 ## 사용 방법
 
 1. 분석 프로젝트의 루트에 공통 `AGENTS.md`를 둔다.
-2. `amplicon/`, `shotgun/` 하위 문서와 `HTML_REPORT_AGENTS.md`의 상대 경로를 유지한다.
+2. `amplicon/AGENTS.md`, `shotgun/CORE_DOWNSTREAM_ANALYSIS.md` 및 `HTML_REPORT_AGENTS.md`의 상대 경로를 유지한다.
 3. 분석 전에 `Clinical_Microbiome_Data_Prep_Checklist.xlsx`에 주요 비교변수, covariate, 반복측정 구조, batch 변수, institution, sex, negative control 식별 방법 등을 기록한다.
-4. Amplicon 분석에는 공통 지침과 amplicon 지침을 함께 적용한다.
+4. Amplicon 분석에는 공통 지침과 amplicon 지침을, shotgun core downstream 분석에는 공통 지침과 shotgun 지침을 함께 적용한다.
 5. HTML 보고서 작성 또는 수정에는 분석 지침과 HTML 보고서 지침을 함께 적용한다.
 6. 프로젝트별 예외는 해당 지침 하단의 `Project-Specific Guidelines`에 추가한다.
 
@@ -79,7 +92,7 @@
 
 - 공통 임상 마이크로바이옴 분석 지침: 작성됨
 - Amplicon 분석 지침: 작성됨
-- Shotgun 분석 지침: 미작성
+- Shotgun core downstream 분석 지침: 작성됨
 - 한국어 HTML 보고서 작성 지침: 작성됨
 
 분석 규칙은 실제 임상 마이크로바이옴 연구에서 반복적으로 발생한 QC, batch, contamination, confounding 및 재현성 문제를 바탕으로 정리했다.

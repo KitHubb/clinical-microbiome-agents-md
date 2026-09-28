@@ -51,6 +51,9 @@
 - 목차 접기·펼치기 기능을 유지한다.
 - source code, package loading message, 환경 정보 및 입력 처리 출력을 숨긴다.
 - 요청하지 않은 디자인 변경을 하지 않는다.
+- 동일 group의 색상과 순서를 모든 그림에서 유지한다.
+- 축 제목에 abundance 단위와 taxonomic 또는 functional level을 표시한다.
+- 결합 그림의 theme, font, 배경 및 panel 간격을 통일한다.
 - 한글 폰트 구현 참고가 필요한 경우에만 <https://rpubs.com/websphere74/863351>을 참고한다.
 
 # 표 표시 규칙
@@ -62,6 +65,8 @@
 - column 정렬과 페이지 이동 기능은 유지한다.
 - column 이름을 한국어로 번역하지 않는다.
 - 샘플 수와 대상자 수는 소수점 없는 정수로 표시한다.
+- Significant column이 요청된 경우 adjusted p-value를 기준으로 생성한다.
+- Significant 표기는 `***` < 0.001, `**` < 0.01, `*` < 0.05, `ns` ≥ 0.05를 사용하되 본문에서 기준을 반복 설명하지 않는다.
 - 표를 보기 좋게 만들기 위한 임의 재디자인을 하지 않는다.
 
 # 보고서 필수 구성

@@ -13,9 +13,10 @@ unit, input object/table, and study design.
 
 - For amplicon analysis, also read [amplicon/AGENTS.md](amplicon/AGENTS.md).
   It preserves the existing phyloseq-based pipeline and statistical rules.
-- [shotgun/AGENTS.md](shotgun/AGENTS.md) is intentionally empty. Shotgun-specific
-  analysis rules have not been defined; do not inherit the amplicon workflow
-  or its filtering, rarefaction, and decontam choices for shotgun analysis.
+- For routine shotgun downstream analysis, also read
+  [shotgun/CORE_DOWNSTREAM_ANALYSIS.md](shotgun/CORE_DOWNSTREAM_ANALYSIS.md).
+  It covers the core microeco workflow; it does not define read preprocessing,
+  assembly, MAG reconstruction, or every possible shotgun analysis.
 
 Keep this file at the project root and retain the companion paths when copying
 the guidelines to another project. Add study-specific exceptions under
