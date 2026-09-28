@@ -1,86 +1,85 @@
-# Clinical Microbiome AGENTS.md
+# 임상 마이크로바이옴 분석 에이전트 지침
 
-임상 microbiome 논문 분석을 Codex, Claude Code 같은 코딩 에이전트한테 맡길 때 쓰려고
-만든 `AGENTS.md`다. R(phyloseq + tidyverse) 기반이고, 프로젝트 루트에 이 파일만 두면
-에이전트가 QC부터 decontam, 통계, 시각화까지 정해진 순서와 확인 절차를 따라간다.
+임상 마이크로바이옴 연구에서 Codex, Claude Code 같은 코딩 에이전트가 분석 기준을 임의로 바꾸지 않고, 정해진 절차에 따라 R 분석과 HTML 보고서 작성을 수행하도록 만든 개인용 지침 모음이다.
 
-## 왜 만들었나
-LLM한테 R 분석을 시켜보면 매번 비슷한 문제가 반복된다. 이미 있는 패키지 함수를 두고
-지저분하게 직접 짜거나, rarefaction depth나 filtering threshold를 물어보지도 않고
-지가 정해버리거나, batch effect·contamination 점검을 그냥 건너뛰거나. phyloseq 
-object의 문제점 (`subset_samples()`, `as.data.frame()`, 숫자로 시작하는 이름 앞에 `X` 붙는
-문제)을 이해하지 못한다. 
+공통 원칙과 분석 유형별 규칙을 분리했다. Amplicon 분석에는 공통 지침과 `amplicon/AGENTS.md`를 함께 적용한다. Shotgun 분석 지침은 아직 작성하지 않았으며, amplicon 전용 전처리와 통계 규칙을 shotgun 분석에 자동으로 적용하지 않는다.
 
-그래서 이런 지점들을 에이전트가 알아서 판단하지 않고, 정해진 규칙을 따르거나 멈춰서
-나한테 확인받도록 문서로 작성하였다
+## 문서 구성
 
-## 파이프라인
-
-```
-[1] Subject Information      [2] Sample Info → Decontam 결정      [3] Phyloseq 기초 분석
- (moonBook 기술통계)   →      (depth/batch 확인 → decontam)  →      (주효과/batch effect/confounding)
-```
-
-단계별로 `.rds`로 저장하고, 재실행할 땐 이미 있는 결과를 다시 계산하지 않는다.
-
-## 연구자가 확인해야 할 부분은? 
-
-에이전트가 값을 임의로 정하지 않고 멈춰서 확인받도록 정해둔 지점이 8개다.
-
-| # | 위치 | 뭘 물어보나 |
-|---|---|---|
-| 1 | 문서 맨 위 원칙 | rarefaction depth·filtering threshold 확정, decontam 방법 선택, covariate 포함 여부, 기존 객체 구조 변경 |
-| 2 | Subject Information | 임상변수 결측치 처리 방침 |
-| 3 | Sample Info → Depth | rarefaction depth 값 (자동 산정 절대 금지) |
-| 4 | Sample Info → Batch confounding table | batch가 group·institution이랑 안 갈릴 때 그걸 어떻게 다룰지 |
-| 5 | Decontam decision | frequency/prevalence/combined 중 최종 선택, threshold 0.1 바꿀지 여부 |
-| 6 | Gate (threshold sensitivity 실행 전) | batch balance 검토 후 batch별로 할지 pooled로 할지, 0.01~0.9 전체 sweep을 진짜 돌릴지 |
-| 7 | Base phyloseq — batch effect | covariate 보정만 할지, ConQuR 같은 batch correction을 쓸지 |
-| 8 | Base phyloseq — main effect | adjusted model에 어떤 confounder를 최종적으로 넣을지 |
-
-6번 Gate가 유일하게 "무조건 멈추고 물어봐라"라고 못박아둔 자리다. threshold sweep은
-계산량도 크고 결과 해석도 민감해서, 여기서만큼은 확인 없이 넘어가는 걸 막아뒀다.
-
-## 어떤 내용을 다루는가?
-
-- **phyloseq 객체 다룰 때 지켜야 하는 것들**: `subset_samples()` 대신 `prune_samples()`,
-  `as.data.frame()` 대신 `data.frame()`, taxa가 행인지 열인지 매번 확인, 숫자로 시작하는
-  이름 앞에 붙는 `X` 제거하기.
-- **decontam 결정 트리**: negative control이랑 DNA 농도가 있는지 없는지에 따라 방법을
-  나눠서 제안하고, 최종 선택은 내가 한다.
-- **batch confounding table**: batch 레벨마다 표본 수, 그룹 수, 기관 수, 성비를 표로
-  뽑고, batch가 group이나 institution이랑 분리가 안 되면 그냥 넘어가지 말고 경고하게
-  해뒀다.
-- **decontam threshold sensitivity**: `decontamSensitivity` 패키지로 0.01부터 0.9까지
-  돌려서 alpha, beta(PERMANOVA), taxa(평균 상대풍부도 1% 이상인 Genus)를 전후 비교하고,
-  결론이 뒤집히는 구간이 있으면 따로 표시하게 했다.
-- **ScruB·MicrobIEM 교차검증**: 환경에 깔려 있으면 default 값으로 돌려서 메인 decontam
-  결과랑 나란히 비교한다. 대체가 아니라 검증용이다.
-- **단면 vs 종단**: 종단 데이터는 permutation을 SubjectID 안으로 제한하고, GDM처럼 방문
-  마다 값이 안 바뀌는 변수는 종단 모형에서 검정 자체를 안 하게 해뒀다.
-- **코딩 스타일**: tidyverse랑 phyloseq/microbiome/vegan 같은 도메인 패키지 우선,
-  일회성 함수 만들지 말기, seed는 42로 고정, 다중검정은 BH-FDR로 고정.
-
-## 쓰는 법
-
-1. `AGENTS.md`를 분석 프로젝트 루트에 넣는다.
-2. 분석 시작 전에 `Clinical_Microbiome_Data_Prep_Checklist.xlsx`를 채운다. 주
-   비교변수, covariate, 반복측정 구조, batch/institution/sex 컬럼명, negative control
-   식별 방법, decontam 기본값 같은 걸 미리 적어두면 나중에 매번 다시 안 물어봐도 된다.
-3. Codex나 Claude Code한테 분석을 시키면, `AGENTS.md` 규칙대로 단계를 밟으면서 위 8개
-   지점에서 확인을 요청한다.
-4. 프로젝트마다 다른 것(negative control 샘플 ID, 실제 batch 변수명 등)은 `AGENTS.md`
-   맨 아래 `Project-Specific Guidelines`에 추가한다. 본문은 건드리지 않는다.
-
-## 파일
-
-| 파일 | 내용 |
+| 파일 | 용도 |
 |---|---|
-| `AGENTS.md` | 에이전트용 하네스 문서 |
-| `Clinical_Microbiome_Data_Prep_Checklist.xlsx` | 분석 전에 채우는 사전 정보 체크리스트 |
+| [AGENTS.md](AGENTS.md) | 임상정보, 연구설계, batch 점검, 코딩, 검증 및 캐싱에 관한 공통 지침 |
+| [amplicon/AGENTS.md](amplicon/AGENTS.md) | `phyloseq` 기반 amplicon QC, decontam, diversity 및 통계 분석 지침 |
+| [shotgun/AGENTS.md](shotgun/AGENTS.md) | 향후 shotgun 분석 지침을 작성하기 위한 빈 문서 |
+| [HTML_REPORT_AGENTS.md](HTML_REPORT_AGENTS.md) | 한국어 HTML 보고서의 문체, 구성, 표·그림 표시, 렌더링 및 최종 검증 지침 |
+| `Clinical_Microbiome_Data_Prep_Checklist.xlsx` | 분석 전에 연구설계와 변수 정보를 정리하는 체크리스트 |
 
-## 참고
+## 만든 이유
 
-문서 구조(권한/자율성 구분하는 방식)는 공개된 코딩 에이전트 하네스 문서들 구성을 참고했고,
-분석 내용(phyloseq 처리 규칙, decontam 결정, batch/confounding 체크)은 실제 임상
-microbiome 분석하면서 겪은 문제들 기반으로 새로 썼다.
+에이전트에게 R 분석을 맡기면 다음 문제가 반복되기 쉽다.
+
+- 기존 패키지 함수 대신 불필요하게 복잡한 코드를 작성함
+- rarefaction depth나 filtering threshold를 임의로 선택함
+- batch effect, contamination 및 confounding 점검을 생략함
+- subject 수와 sample 수를 구분하지 않음
+- `phyloseq` 객체의 orientation, NSE 및 이름 변환 문제를 놓침
+- 보고서 편집 중 분석 방법이나 수치를 의도치 않게 변경함
+- HTML 렌더링 성공 여부만 확인하고 실제 표시 상태를 검사하지 않음
+
+이 문서들은 에이전트가 임의로 결정해도 되는 작업과 연구자 확인이 필요한 결정을 구분하고, 분석 결과가 본문·표·그림·결론에서 일관되게 유지되도록 하기 위해 작성했다.
+
+## Amplicon 분석 흐름
+
+```text
+[1] Subject Information      [2] Sample Info → Decontam 결정      [3] Phyloseq 기초 분석
+    moonBook 기술통계       →     depth·batch 점검 → decontam    →     주효과·batch effect·confounding
+```
+
+각 단계의 결과는 `.rds`로 저장한다. 재분석할 때는 검증된 이전 단계의 산출물을 재사용하고, 변경된 단계부터 다시 계산한다.
+
+## 연구자 확인이 필요한 주요 결정
+
+에이전트는 다음 항목을 실제 데이터와 선택지의 장단점 없이 임의로 확정하지 않는다.
+
+1. Rarefaction depth와 abundance-filtering threshold
+2. 임상변수 결측치 처리 방법
+3. Negative control 및 DNA 정량값 유무에 따른 decontam 방법
+4. Batch별 decontam과 pooled decontam 중 선택
+5. Decontam threshold 변경 및 전체 sensitivity sweep 실행 여부
+6. Batch와 group 또는 institution이 분리되지 않을 때의 처리
+7. Adjusted model에 포함할 covariate
+8. Batch correction 적용 여부
+
+특히 decontam threshold sensitivity를 실행하기 전에는 batch balance 검토 결과와 분석 범위를 먼저 확인한다.
+
+## Amplicon 지침의 핵심 내용
+
+- `subset_samples()` 대신 `prune_samples()` 사용
+- `otu_table()`의 taxa orientation 확인
+- S4 객체를 `as.data.frame()`으로 변환하지 않음
+- 숫자로 시작하는 이름에 붙는 `X` prefix 복원
+- Negative control과 DNA 농도에 따른 decontam 방법 결정
+- Batch별 sample 수, 비교군 수, institution 수 및 성비 확인
+- PERMANOVA와 `betadisper()`를 함께 검토
+- Cross-sectional 분석과 longitudinal 분석 구분
+- 반복측정 분석에서 SubjectID 내 permutation 제한
+- `set.seed(42)`와 BH-FDR 적용
+- 분석 단계별 sample·subject·taxa 수와 전후 변화 검증
+
+## 사용 방법
+
+1. 분석 프로젝트의 루트에 공통 `AGENTS.md`를 둔다.
+2. `amplicon/`, `shotgun/` 하위 문서와 `HTML_REPORT_AGENTS.md`의 상대 경로를 유지한다.
+3. 분석 전에 `Clinical_Microbiome_Data_Prep_Checklist.xlsx`에 주요 비교변수, covariate, 반복측정 구조, batch 변수, institution, sex, negative control 식별 방법 등을 기록한다.
+4. Amplicon 분석에는 공통 지침과 amplicon 지침을 함께 적용한다.
+5. HTML 보고서 작성 또는 수정에는 분석 지침과 HTML 보고서 지침을 함께 적용한다.
+6. 프로젝트별 예외는 해당 지침 하단의 `Project-Specific Guidelines`에 추가한다.
+
+## 현재 상태
+
+- 공통 임상 마이크로바이옴 분석 지침: 작성됨
+- Amplicon 분석 지침: 작성됨
+- Shotgun 분석 지침: 미작성
+- 한국어 HTML 보고서 작성 지침: 작성됨
+
+분석 규칙은 실제 임상 마이크로바이옴 연구에서 반복적으로 발생한 QC, batch, contamination, confounding 및 재현성 문제를 바탕으로 정리했다.
