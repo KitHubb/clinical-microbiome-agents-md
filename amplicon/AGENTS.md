@@ -3,14 +3,15 @@
 Apply this document only to amplicon analysis. Read and follow the common
 [AGENTS.md](../AGENTS.md) first, including Subject Information (moonBook),
 clinical metadata handling, batch confounding, coding style, output
-verification, and caching. The sections below preserve the original
+verification, and output management. The sections below preserve the original
 phyloseq-based workflow; common sections have moved to the parent document.
 
 # Amplicon-specific decisions and statistical explanation
 
 - Fix rarefaction depth and abundance-filtering thresholds only with user confirmation.
-- Confirm whether negative controls exist and obtain confirmation before choosing
-  a decontam method (frequency / prevalence / combined).
+- For contamination assessment or removal, follow [DECONTAM.md](DECONTAM.md).
+  Confirm whether negative controls exist and obtain approval before choosing
+  or running any decontam method.
 - Keep statistical assumptions and code implementation visibly separate — e.g.,
   state that PERMANOVA does not assume homogeneity of dispersion but that you
   will still check it with betadisper(), before writing the adonis2() call.
@@ -35,10 +36,10 @@ artifact from the stage before it.
     (moonBook descriptives) →    (depth / batch check → decontam)  →     (main effect / batch effect / confounding)
 ```
 
-Save each stage's output as an `.rds` under a stage-numbered folder
-(`results/01_subject/`, `results/02_sample_decontam/`,
-`results/03_phyloseq_base/`). On re-run, load the existing `.rds` instead of
-recomputing (see "Caching and file management").
+Verify each stage before continuing, but keep stage objects in memory rather
+than saving separate intermediate `.rds` files. Save only the final workbook,
+figures, report, or final analysis object required by the request (see
+"R/Rmd working files and output management" in the parent document).
 
 ---
 
@@ -55,7 +56,7 @@ Treat every stage as an implement-then-verify pair. Do not report a stage
 
 ---
 
-# Sample Info and the decontam decision
+# Sample Info
 
 ## Depth / library size (must be shown before any threshold is fixed)
 
@@ -75,79 +76,14 @@ library, suspected contamination) before treating it as biological.
 Follow "Batch information and confounding" in [../AGENTS.md](../AGENTS.md).
 Merge the wet-lab batch fields into phyloseq sample_data, and build the
 required batch confounding table from sample_data before decontam or modeling.
-Present its warnings before the sensitivity gate below.
+Present its warnings before the approval gate in [DECONTAM.md](DECONTAM.md).
 
-## Decontam decision
+## Decontam
 
-Propose a method from the table below; do not apply one without user
-confirmation.
-
-| Condition | Recommended method |
-|---|---|
-| Negative control present, DNA quant available | `method = "combined"` (frequency + prevalence) |
-| Negative control present, no quant | `method = "prevalence"` |
-| No negative control, quant available | `method = "frequency"` only — flag the limitation |
-| Neither negative control nor quant | decontam not applicable — offer manual prevalence filtering of known reagent-contaminant taxa as the only alternative |
-
-Do not change the default `threshold` (0.1) silently. If you do change it,
-report the number of taxa flagged as contaminants and their identity
-(genus/family level) so the change is auditable. Compare alpha diversity and
-major taxon composition before vs. after decontam so the researcher can judge
-whether removal was too aggressive.
-
-## Gate: confirm before running decontam threshold sensitivity
-
-Before running any threshold sweep or cross-tool comparison below, stop and
-get explicit confirmation on both of the following. Do not proceed on an
-assumed "yes."
-
-1. **Batch balance report reviewed, and a decision on batch-stratified
-   decontam.** Present the batch confounding table above, including any
-   warnings, and ask whether decontam should be run per batch (e.g. separate
-   negative-control pools per sequencing run) or on the pooled dataset.
-2. **Scope of the threshold sensitivity report.** Confirm the user wants the
-   full sweep below (all 11 thresholds × alpha/beta/taxa) rather than a
-   single default-threshold run — it is computationally heavier and produces
-   a large comparison output.
-
-## Decontam threshold sensitivity
-
-Use the `decontamSensitivity` package for the sweep — do not hand-roll a loop
-over `decontam::isContaminant()` calls, since `decontamSensitivity` already
-standardizes the before/after comparison structure.
-
-- **Thresholds to test:** 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8,
-  0.9.
-- **For each threshold, report before vs. after:**
-  - **Alpha diversity** — paired comparison of the chosen index(es) pre- vs.
-    post-removal at that threshold.
-  - **Beta diversity** — PERMANOVA on the primary analysis model (the same
-    formula as the main analysis in "Base phyloseq analysis"), before vs.
-    after, so the sensitivity result is directly comparable to the paper's
-    main statistic.
-  - **Taxa** — restrict to Genus-level taxa with mean relative abundance
-    ≥ 1%, and visualize how their abundance shifts across thresholds (e.g. a
-    line or heatmap of abundance vs. threshold, one panel per taxon or a
-    faceted plot).
-- Summarize the full sweep in one table (threshold × metric) plus the
-  taxon-level plot, and flag any threshold range where conclusions (direction
-  or significance of the main PERMANOVA result) flip — that range is the
-  one worth discussing with the user, not the full 11-row table on its own.
-
-## Cross-validation against ScruB / MicrobIEM
-
-Before finalizing the decontam-based result, check whether `ScruB` or
-`MicrobIEM` is installed in the environment. If either is available:
-
-- Run it with its **default parameters** (do not tune it) on the same input.
-- Compare its contaminant call / decontaminated table against the main
-  `decontam` result: overlap in flagged taxa, and the same alpha/beta/taxa
-  before-after comparison used in the threshold sensitivity section above.
-- Present this as a secondary cross-check next to the main decontam result,
-  not as a replacement for it, unless the user asks you to switch the primary
-  method.
-- If neither tool is installed, say so plainly and skip this step — do not
-  attempt to install packages from unapproved sources on your own.
+All method-selection rules, approval gates, threshold sensitivity, cross-tool
+validation, and decontam-specific verification are in
+[DECONTAM.md](DECONTAM.md). Do not run contamination removal until its approval
+requirements are satisfied.
 
 ---
 
@@ -221,10 +157,8 @@ counts before vs. after every filtering step (see "Output verification").
 
 ---
 
-# Batch effect and contamination — checklist
+# Batch effect — checklist
 
-- [ ] Confirmed whether negative controls (extraction/PCR blanks) exist →
-      decontam method decided per the table above
 - [ ] Batch confounding table built (n comparison groups / n institutions /
       sex ratio per batch level), with warnings stated for any batch that
       is not separable from group or institution
@@ -236,14 +170,9 @@ counts before vs. after every filtering step (see "Output verification").
       limitation instead of adjusting)
 - [ ] Batch-correction algorithms (e.g. ConQuR) applied only on explicit
       request, always shown before/after in ordination to catch over-correction
-- [ ] Logged taxa count and major taxon composition before/after decontam
-- [ ] User confirmed both gate items before any threshold sweep: batch
-      balance reviewed + batch-stratified decontam decision, and scope of the
-      sensitivity report
-- [ ] `decontamSensitivity` sweep run across the 11 thresholds if requested,
-      with alpha/beta(PERMANOVA)/Genus-taxa (≥1% mean abundance) comparisons
-- [ ] ScruB/MicrobIEM cross-check run and compared to main decontam result, if
-      either tool is installed
+
+For contamination-removal checks, use the dedicated checklist in
+[DECONTAM.md](DECONTAM.md).
 
 ---
 
@@ -274,16 +203,11 @@ Classify the data structure before choosing a statistical strategy.
       count** kept distinct from sample count
 - [ ] Actual sample count used in each statistical model (post-missingness)
 - [ ] Taxa/sample counts before vs. after preprocessing
-- [ ] Where applicable: decontam before/after comparison, batch-effect
-      significance
+- [ ] Where applicable: batch-effect significance; decontam verification per
+      [DECONTAM.md](DECONTAM.md)
 - [ ] Batch confounding table produced (n groups / n institutions / sex ratio
       per batch), with explicit warnings for any batch that cannot be
       separated from group or institution
-- [ ] Where a threshold sweep was run: `decontamSensitivity` output table
-      (11 thresholds × alpha/beta/taxa) saved, and any threshold range where
-      the main PERMANOVA conclusion flips flagged
-- [ ] Where ScruB/MicrobIEM was available: cross-check result saved alongside
-      the main decontam result
 
 ---
 
@@ -334,7 +258,7 @@ add an additional clinical-sample filter on your own.
 - phyloseq, microbiome, vegan, tidyverse first; crossing() + pmap_dfr() for
   distance x dataset x variable repetition
 - seed = 42 fixed, p-values BH-FDR fixed
-- Save each stage as .rds; reuse existing .rds on re-analysis
+- Keep stage objects in memory; save only the requested final deliverables
 ```
 
 ---

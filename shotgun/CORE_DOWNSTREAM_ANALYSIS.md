@@ -28,7 +28,8 @@ Record before analysis:
 Rules:
 
 - Do not hard-code project-specific paths, group names, or covariates in common analysis code.
-- Manage values that vary by analysis in a configuration object or parameters.
+- Write project-specific values and file paths directly where they are used;
+  do not create a config list or path registry solely for indirection.
 - Do not infer paired relationships, batches, or covariates that were not provided.
 - Record metadata discrepancies separately without modifying the raw metadata.
 - Obtain user confirmation before fixing a filtering threshold, normalization method, pseudocount, model covariate, or batch-correction method.
@@ -194,7 +195,8 @@ Avoid repeated object-class conversion.
 ## Visualization
 
 - Prefer package-provided boxplots, violin plots, or equivalent defaults.
-- Save each index result and its plot-ready data separately.
+- Keep per-index results and plot-ready data in memory, then consolidate only
+  the requested final statistics and figures.
 - Preserve index and group order across comparable subsets.
 - Show paired relationships when useful and supported by the design.
 
@@ -207,7 +209,9 @@ Avoid repeated object-class conversion.
 - For Aitchison analysis, document zero handling and the log-ratio transformation.
 - Match the ordination method, such as PCoA or PCA, to the distance or transformation.
 - Add group ellipses or marginal plots only when useful.
-- Save ordination coordinates, axis labels, and explained variance used for plotting.
+- Keep ordination coordinates, axis labels, and explained variance available
+  in memory for verification; export them only when they are part of the
+  requested final deliverable.
 
 ## PERMANOVA
 
@@ -307,20 +311,22 @@ Keep plotting scales separate from statistical transformations.
 
 ## Plot-ready data
 
-- Save the data used for each plot separately from statistical input.
+- Do not save a separate plot-data file for every figure. Keep plot-ready data
+  in memory and include it only when the requested final workbook requires it.
 - Preserve group order, feature order, abundance unit, and taxonomic or functional level.
 - Record display-only aggregation, scaling, and `Others` handling.
 - Keep plot styling, significance symbols, fonts, colors, themes, and layout in the HTML report guide.
 # 16. Saving and verification
 
-Save:
+Save only final deliverables:
 
-- Analysis configuration and software versions
-- Analysis objects before and after preprocessing
-- Sample QC and exclusion records
-- Statistical result tables
-- Figures and the aggregated data used to create them
-- Taxonomic and functional annotation mappings
+- One consolidated workbook containing final statistical results, sample QC,
+  exclusions, software versions, and required annotation mappings
+- Final figures
+- The final report or final analysis object only when required by the request
+
+Do not persist preprocessing objects, per-index files, plot-ready data, or
+other intermediate artifacts solely for caching or audit purposes.
 
 Verify:
 
@@ -343,7 +349,7 @@ Provide:
 - Statistical methods, covariates, repeated-measures handling, and multiple-testing correction
 - Main results and test statistics
 - Data and study-design limitations
-- Paths to figures, tables, and analysis objects
+- Paths to final figures, tables, and reports
 
 Use [HTML_REPORT_AGENTS.md](../HTML_REPORT_AGENTS.md) for Korean prose, theme, layout, table UI, rendering, and visual checks.
 

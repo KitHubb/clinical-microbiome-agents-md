@@ -36,7 +36,8 @@ companion defines its existing three-stage pipeline and output directories.
 
 Proceed without asking when implementing an already-approved plan, doing
 read-only exploration (EDA, distributions, cross-tabs), fixing an existing
-bug, or producing a re-runnable intermediate artifact.
+bug, or producing a temporary working artifact that will not be retained as a
+result.
 
 Stop and ask before fixing filtering or normalization choices, selecting a
 contamination-removal method, deciding model covariates, applying batch
@@ -68,6 +69,15 @@ for its existing model and permutation instructions.
 
 # Simplicity and surgical changes
 
+- Do not delete an existing file or recreate it wholesale. Before editing,
+  copy the original to `tmp/`, `cache/`, or a separate backup file, then
+  apply a partial patch to the existing file. Remove the temporary backup
+  after the patched file has been verified.
+- Keep only code required for the actual analysis. Do not introduce
+  `required_files`, a config list, a general-purpose wrapper, or similar
+  abstraction unless the user explicitly requests it.
+- Write a file path directly where it is used instead of creating a separate
+  path registry or configuration layer.
 - Do not add options, generalized frameworks, or "flexibility" nobody asked
   for.
 - Do not build a general-purpose function or class for something used once.
@@ -77,6 +87,15 @@ for its existing model and permutation instructions.
   fold in unrelated formatting or "improvements."
 - Clean up variables or imports that your own edit made unused. Leave
   pre-existing dead code alone unless asked to remove it.
+- Do not add `stopifnot()`, generic verification tables, audit tables, or
+  unnecessary intermediate objects. Preserve an existing essential check or a
+  required scientific result table unless the requested change specifically
+  removes it.
+- Touch only the requested files. Do not make collateral edits elsewhere.
+- After editing, validate syntax and the changed code path first. Run the full
+  analysis only when that narrower verification is insufficient or the user
+  explicitly requests it.
+- At completion, report only the parts changed, concisely.
 
 ---
 
@@ -179,11 +198,12 @@ that merely runs once.
   combination grid with `tidyr::crossing()` and iterate with
   `purrr::pmap_dfr()`. Don't hand-write multiple near-duplicate for-loops for
   the same logic.
-- **No one-off functions.** Don't wrap single-use computations in a
-  general-purpose function, framework, or class. Factor out only when it
-  measurably reduces duplication.
-- **Intermediate objects only when reused.** Don't name and store a pipeline
-  step that is used exactly once and then discarded.
+- **Use hard failures sparingly.** Do not add `stopifnot()`. Use `stop()`
+  only when the analysis is invalid or unsafe to continue; use an informative
+  warning for non-fatal conditions.
+- **Add concise English comments for every major analysis stage.** Comment
+  only where the stage or non-obvious reasoning needs explanation; do not
+  narrate obvious line-by-line operations.
 - **Fix reproducibility.** Call `set.seed(42)` immediately before any
   permutation-based analysis (e.g. PERMANOVA). Use BH-FDR
   (`p.adjust(method = "BH")`) for multiple-testing correction unless told
@@ -215,19 +235,24 @@ Treat every stage as an implement-then-verify pair. Do not report a stage
 
 ---
 
-# Caching and file management
+# R/Rmd working files and output management
 
-- Save every pipeline stage (preprocessing, QC, decontam, beta-diversity, ...)
-  as an `.rds` (`results/0X_step/step_output.rds`).
-- On re-run, load the existing `.rds` instead of recomputing. Require an
-  explicit flag (e.g. `force_recompute = TRUE`) for the user to force
-  recomputation.
-- If a modification request only touches part of the pipeline, load the
-  earlier stages' `.rds` as-is and recompute only from the affected stage
-  onward — never a full re-run by default.
-- Save final results as one Excel workbook (statistics, organized by sheet)
-  plus figure files (PCoA, etc.), with the filename including a date or
-  analysis version.
+- Before modifying an existing `.R` or `.Rmd` file, copy the original to
+  `tmp/`, `cache/`, or a separate backup file. Apply only a partial patch
+  to the file at its original path; do not replace it wholesale with the
+  working copy. Remove the backup after syntax and changed-path verification
+  succeeds.
+- Temporary execution files may be created under `tmp/` or `cache/`, but
+  they are working files only and must not be treated as analysis outputs.
+- Do not save every pipeline stage or other intermediate objects as separate
+  `.rds`, spreadsheets, or plot-data files. Keep intermediate objects in
+  memory and run the stage-specific verification checks before continuing.
+- Save only the final deliverables: one Excel workbook for final statistics,
+  the final figure files, and the final report or final analysis object when
+  required. Include a date or analysis version in final output filenames.
+- If only part of an analysis changes, rerun only the affected code path when
+  feasible, but do not introduce persistent intermediate caches solely to
+  avoid recomputation.
 
 ---
 
